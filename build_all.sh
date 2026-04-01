@@ -13,7 +13,6 @@ echo "To build for all platforms, you need to run this on:"
 echo "  1. macOS (for both ARM64 and Intel versions)"
 echo "  2. Windows (for Windows version)"
 echo ""
-read -p "Press Enter to continue..."
 
 # Detect current platform
 OS="$(uname -s)"

@@ -21,10 +21,18 @@ rm -rf build/ dist/
 # Build for ARM64
 echo "Building for ARM64 architecture..."
 pyinstaller \
-    --target-arch arm64 \
     --clean \
     --noconfirm \
-    ObjectBoxViewer.spec
+    --target-arch arm64 \
+    main.py \
+    --name ObjectBoxViewer \
+    --windowed \
+    --onefile \
+    --add-data "src:src" \
+    --hidden-import customtkinter \
+    --hidden-import lmdb \
+    --hidden-import PIL \
+    --hidden-import tkinter.ttk
 
 # Check if build succeeded
 if [ -d "dist/ObjectBoxViewer.app" ]; then
