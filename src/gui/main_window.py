@@ -194,7 +194,8 @@ class ObjectBoxBrowser(ctk.CTk):
         self.table_view = TableView(
             right_panel,
             on_row_select=self._on_row_select,
-            on_row_double_click=self._on_row_double_click
+            on_row_double_click=self._on_row_double_click,
+            main_window=self  # Pass reference to main window
         )
         self.table_view.grid(row=0, column=0, sticky='nsew')
 

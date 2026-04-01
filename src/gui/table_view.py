@@ -28,12 +28,14 @@ class TableView(ctk.CTkFrame):
         master: tk.Widget,
         on_row_select: Callable[[int, dict], None] | None = None,
         on_row_double_click: Callable[[int, dict], None] | None = None,
+        main_window: tk.Widget | None = None,
         **kwargs
     ):
         super().__init__(master, **kwargs)
 
         self.on_row_select = on_row_select
         self.on_row_double_click = on_row_double_click
+        self.main_window = main_window  # Reference to main window for status updates
 
         self._data: list[tuple[int, dict | None, bytes]] = []
         self._filtered_data: list[tuple[int, dict | None, bytes]] = []
@@ -583,8 +585,8 @@ class TableView(ctk.CTkFrame):
         self._refresh_display()
 
         # Update status to show filtered count
-        if hasattr(self.master, 'update_search_status'):
-            self.master.update_search_status(len(self._filtered_data), len(self._data))
+        if self.main_window and hasattr(self.main_window, 'update_search_status'):
+            self.main_window.update_search_status(len(self._filtered_data), len(self._data))
 
     def _update_pagination_controls(self):
         """Update pagination control states."""

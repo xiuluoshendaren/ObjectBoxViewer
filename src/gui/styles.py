@@ -4,23 +4,23 @@ import customtkinter as ctk
 from tkinter import ttk, font as tkfont
 
 
-# Color scheme - improved contrast and brightness
+# Color scheme - Modern gray-blue theme with better contrast
 COLORS = {
-    'bg_dark': '#2d2d2d',
-    'bg_light': '#3d3d3d',
-    'bg_lighter': '#4a4a4a',
-    'fg_dark': '#ffffff',
-    'fg_light': '#e8e8e8',
-    'fg_medium': '#c0c0c0',
-    'accent': '#4a9eff',
-    'accent_hover': '#5ab0ff',
-    'success': '#4ade80',
-    'warning': '#fbbf24',
-    'danger': '#f87171',
-    'border': '#525252',
-    'row_odd': '#353535',
-    'row_even': '#2a2a2a',
-    'selection': '#4a9eff'
+    'bg_dark': '#3a3f4b',      # Main background - gray-blue
+    'bg_light': '#4a505c',     # Lighter background
+    'bg_lighter': '#5a616d',   # Even lighter for headers
+    'fg_dark': '#ffffff',      # Primary text - pure white
+    'fg_light': '#e8eaed',     # Secondary text - off-white
+    'fg_medium': '#b8bbbf',    # Tertiary text - light gray
+    'accent': '#5dade2',       # Accent - bright blue
+    'accent_hover': '#6fc3f5', # Accent hover - lighter blue
+    'success': '#4ade80',      # Success - bright green
+    'warning': '#fbbf24',      # Warning - amber
+    'danger': '#f87171',       # Danger - coral red
+    'border': '#6b7280',       # Border - medium gray
+    'row_odd': '#404650',      # Odd row - medium gray-blue
+    'row_even': '#363c48',     # Even row - darker gray-blue
+    'selection': '#5dade2'     # Selection - bright blue
 }
 
 
