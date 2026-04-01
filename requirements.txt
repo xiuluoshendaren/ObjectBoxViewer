@@ -1,2 +1,10 @@
-lmdb>=1.4.1
-customtkinter>=5.2.0
+# ObjectBox Viewer Dependencies
+# Fixed versions for reproducible builds
+
+# Core dependencies
+customtkinter==5.2.2
+lmdb==2.2.0
+pillow==12.1.0
+
+# Packaging tool (for building executables)
+pyinstaller==6.11.1

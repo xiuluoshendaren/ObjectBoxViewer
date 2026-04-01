@@ -123,6 +123,52 @@ python -m pytest tests/
 
 This project follows PEP 8 guidelines with type hints.
 
+## Building Executables
+
+This project supports building standalone executables for multiple platforms.
+
+### Prerequisites
+
+Install PyInstaller:
+
+```bash
+pip install pyinstaller
+```
+
+### Build for Different Platforms
+
+**macOS Apple Silicon (M1/M2/M3):**
+```bash
+./build_macos_arm64.sh
+```
+
+**macOS Intel (x86_64):**
+```bash
+./build_macos_intel.sh
+```
+
+**Windows:**
+```batch
+build_windows.bat
+```
+
+**Auto-detect and build:**
+```bash
+./build_all.sh
+```
+
+### Build Output
+
+- **macOS**: `dist/ObjectBoxViewer.app` - Double-click to run
+- **Windows**: `dist/ObjectBoxViewer/ObjectBoxViewer.exe` - Run the executable
+
+### Notes
+
+- Each platform build must be run on that specific platform
+- The build process creates a standalone application that doesn't require Python
+- Users can run the app directly without installing dependencies
+- Build artifacts are stored in `dist/` and `build/` directories (not committed to git)
+
 ## License
 
 MIT License
