@@ -53,7 +53,7 @@ jobs:
 
   build-macos-intel:
     name: Build for macOS Intel (x86_64)
-    runs-on: macos-latest  # Intel runner
+    runs-on: macos-26-intel  # Intel runner
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
