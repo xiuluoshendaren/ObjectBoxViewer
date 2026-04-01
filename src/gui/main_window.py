@@ -35,6 +35,7 @@ class ObjectBoxBrowser(ctk.CTk):
         # Current selection
         self.current_entity_id: int | None = None
         self.entities: dict[int, EntityInfo] = {}
+        self.total_records: int = 0  # Track total records for status
 
         # Setup window
         self._setup_window()
@@ -344,20 +345,29 @@ class ObjectBoxBrowser(ctk.CTk):
             # Load all records for this entity
             data = list(self.db.iter_entity(entity_id))
 
+            # Store total count
+            self.total_records = len(data)
+
             # Display in table
             self.table_view.set_data(data)
 
             # Update status
-            count = len(data)
             entity_info = self.entities.get(entity_id)
             entity_name = entity_info.name if entity_info else f"Entity {entity_id}"
 
             self.status_label.configure(text=f"Entity: {entity_name}")
-            self.record_count_label.configure(text=f"Records: {count}")
+            self.record_count_label.configure(text=f"Records: {self.total_records}")
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load records:\n{str(e)}")
             self.status_label.configure(text="Error loading records")
+
+    def update_search_status(self, filtered_count: int, total_count: int):
+        """Update status bar with search results count."""
+        if filtered_count == total_count:
+            self.record_count_label.configure(text=f"Records: {total_count}")
+        else:
+            self.record_count_label.configure(text=f"Records: {filtered_count} / {total_count} (filtered)")
 
     def _on_row_select(self, record_id: int, data: dict | None):
         """Handle row selection in table."""

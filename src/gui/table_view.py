@@ -42,6 +42,11 @@ class TableView(ctk.CTkFrame):
         self._sort_reverse: bool = False
         self._search_query: str = ''
 
+        # Pagination
+        self._current_page: int = 1
+        self._page_size: int = 100  # Records per page
+        self._total_pages: int = 1
+
         self._setup_ui()
 
     def _setup_ui(self):
@@ -108,14 +113,24 @@ class TableView(ctk.CTkFrame):
             font=FONTS['body']
         )
         self.search_entry.pack(side=tk.LEFT, padx=5)
-        self.search_entry.bind('<KeyRelease>', self._on_search_change)
+        self.search_entry.bind('<Return>', self._on_search_submit)  # Press Enter to search
+
+        # Search button
+        self.search_btn = ctk.CTkButton(
+            self.search_frame,
+            text="🔍 Search",
+            command=self._on_search_submit,
+            width=90,
+            **get_button_style('primary')
+        )
+        self.search_btn.pack(side=tk.LEFT, padx=5)
 
         # Clear search button
         self.clear_search_btn = ctk.CTkButton(
             self.search_frame,
-            text="✕",
+            text="✕ Clear",
             command=self._clear_search,
-            width=30,
+            width=70,
             **get_button_style('warning')
         )
         self.clear_search_btn.pack(side=tk.LEFT, padx=5)
@@ -160,6 +175,111 @@ class TableView(ctk.CTkFrame):
         self.tree.bind('<Double-1>', self._on_double_click)
         self.tree.bind('<Button-1>', self._on_header_click)
 
+        # Pagination controls
+        self.pagination_frame = ctk.CTkFrame(self)
+        self.pagination_frame.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
+
+        # Page size selector
+        page_size_label = ctk.CTkLabel(
+            self.pagination_frame,
+            text="Records per page:",
+            font=FONTS['body'],
+            text_color=COLORS['fg_light']
+        )
+        page_size_label.pack(side=tk.LEFT, padx=5)
+
+        self.page_size_var = tk.StringVar(value='100')
+        self.page_size_combo = ttk.Combobox(
+            self.pagination_frame,
+            textvariable=self.page_size_var,
+            values=['50', '100', '200', '500', '1000'],
+            state='readonly',
+            width=10,
+            font=FONTS['body']
+        )
+        self.page_size_combo.pack(side=tk.LEFT, padx=5)
+        self.page_size_combo.bind('<<ComboboxSelected>>', self._on_page_size_change)
+
+        # Navigation buttons
+        nav_frame = ctk.CTkFrame(self.pagination_frame, fg_color='transparent')
+        nav_frame.pack(side=tk.LEFT, padx=20)
+
+        self.first_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="⏮ First",
+            command=self._go_to_first_page,
+            width=80,
+            **get_button_style('primary')
+        )
+        self.first_page_btn.pack(side=tk.LEFT, padx=2)
+
+        self.prev_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="◀ Prev",
+            command=self._go_to_prev_page,
+            width=80,
+            **get_button_style('primary')
+        )
+        self.prev_page_btn.pack(side=tk.LEFT, padx=2)
+
+        # Page indicator
+        self.page_label = ctk.CTkLabel(
+            nav_frame,
+            text="Page 1 of 1",
+            font=FONTS['body'],
+            text_color=COLORS['fg_light']
+        )
+        self.page_label.pack(side=tk.LEFT, padx=10)
+
+        self.next_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="Next ▶",
+            command=self._go_to_next_page,
+            width=80,
+            **get_button_style('primary')
+        )
+        self.next_page_btn.pack(side=tk.LEFT, padx=2)
+
+        self.last_page_btn = ctk.CTkButton(
+            nav_frame,
+            text="Last ⏭",
+            command=self._go_to_last_page,
+            width=80,
+            **get_button_style('primary')
+        )
+        self.last_page_btn.pack(side=tk.LEFT, padx=2)
+
+        # Page jump
+        jump_frame = ctk.CTkFrame(self.pagination_frame, fg_color='transparent')
+        jump_frame.pack(side=tk.RIGHT, padx=10)
+
+        jump_label = ctk.CTkLabel(
+            jump_frame,
+            text="Go to page:",
+            font=FONTS['body'],
+            text_color=COLORS['fg_light']
+        )
+        jump_label.pack(side=tk.LEFT, padx=5)
+
+        self.page_jump_var = tk.StringVar()
+        self.page_jump_entry = ctk.CTkEntry(
+            jump_frame,
+            textvariable=self.page_jump_var,
+            width=60,
+            font=FONTS['body']
+        )
+        self.page_jump_entry.pack(side=tk.LEFT, padx=5)
+        self.page_jump_entry.bind('<Return>', self._on_page_jump)
+
+        jump_btn = ctk.CTkButton(
+            jump_frame,
+            text="Go",
+            command=self._on_page_jump,
+            width=50,
+            **get_button_style('primary')
+        )
+        jump_btn.pack(side=tk.LEFT, padx=5)
+
         # Configure grid
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -175,6 +295,7 @@ class TableView(ctk.CTkFrame):
         self.clear()
 
         self._data = data
+        self._filtered_data = data.copy()  # Initialize filtered data
 
         if not data:
             return
@@ -234,11 +355,20 @@ class TableView(ctk.CTkFrame):
             self.sort_var.set(self._sort_column)
 
     def _insert_data(self):
-        """Insert data into the tree (with sorting applied)."""
-        # Sort data before inserting
+        """Insert current page data into the tree (with sorting applied)."""
+        # Sort filtered data before inserting
         sorted_data = self._sort_data()
 
-        for idx, (record_id, parsed, raw) in enumerate(sorted_data):
+        # Calculate pagination
+        self._total_pages = max(1, (len(sorted_data) + self._page_size - 1) // self._page_size)
+        self._current_page = min(self._current_page, self._total_pages)
+
+        # Get current page data
+        start_idx = (self._current_page - 1) * self._page_size
+        end_idx = start_idx + self._page_size
+        page_data = sorted_data[start_idx:end_idx]
+
+        for idx, (record_id, parsed, raw) in enumerate(page_data):
             # Build values list
             values = [str(record_id)]
 
@@ -270,6 +400,9 @@ class TableView(ctk.CTkFrame):
                 tags=(tag,)
             )
 
+        # Update pagination controls
+        self._update_pagination_controls()
+
     def clear(self):
         """Clear all data from the table."""
         # Clear tree items
@@ -281,7 +414,9 @@ class TableView(ctk.CTkFrame):
 
         # Reset state
         self._data = []
+        self._filtered_data = []
         self._columns = []
+        self._search_query = ''
 
     def get_selected_record(self) -> tuple[int, dict | None] | None:
         """
@@ -322,9 +457,9 @@ class TableView(ctk.CTkFrame):
         return len(self._data)
 
     def _sort_data(self) -> list[tuple[int, dict | None, bytes]]:
-        """Sort data by the current sort column and order."""
-        if not self._data or not self._sort_column:
-            return self._data
+        """Sort filtered data by the current sort column and order."""
+        if not self._filtered_data or not self._sort_column:
+            return self._filtered_data
 
         def get_sort_key(item):
             record_id, parsed, _ = item
@@ -347,7 +482,7 @@ class TableView(ctk.CTkFrame):
 
             return ('', 0)
 
-        return sorted(self._data, key=get_sort_key, reverse=self._sort_reverse)
+        return sorted(self._filtered_data, key=get_sort_key, reverse=self._sort_reverse)
 
     def _on_sort_change(self, event):
         """Handle sort column change."""
@@ -402,8 +537,8 @@ class TableView(ctk.CTkFrame):
             except Exception:
                 pass
 
-    def _on_search_change(self, event):
-        """Handle search input change."""
+    def _on_search_submit(self, event=None):
+        """Handle search button click or Enter key press."""
         self._search_query = self.search_var.get().lower().strip()
         self._apply_search_filter()
 
@@ -441,10 +576,69 @@ class TableView(ctk.CTkFrame):
                     if found:
                         self._filtered_data.append((record_id, parsed, raw))
 
+        # Reset to first page when search changes
+        self._current_page = 1
+
         # Refresh display with filtered data
         self._refresh_display()
 
         # Update status to show filtered count
         if hasattr(self.master, 'update_search_status'):
             self.master.update_search_status(len(self._filtered_data), len(self._data))
+
+    def _update_pagination_controls(self):
+        """Update pagination control states."""
+        # Update page label
+        self.page_label.configure(text=f"Page {self._current_page} of {self._total_pages}")
+
+        # Update button states
+        self.first_page_btn.configure(state=tk.NORMAL if self._current_page > 1 else tk.DISABLED)
+        self.prev_page_btn.configure(state=tk.NORMAL if self._current_page > 1 else tk.DISABLED)
+        self.next_page_btn.configure(state=tk.NORMAL if self._current_page < self._total_pages else tk.DISABLED)
+        self.last_page_btn.configure(state=tk.NORMAL if self._current_page < self._total_pages else tk.DISABLED)
+
+    def _go_to_first_page(self):
+        """Go to first page."""
+        if self._current_page != 1:
+            self._current_page = 1
+            self._refresh_display()
+
+    def _go_to_prev_page(self):
+        """Go to previous page."""
+        if self._current_page > 1:
+            self._current_page -= 1
+            self._refresh_display()
+
+    def _go_to_next_page(self):
+        """Go to next page."""
+        if self._current_page < self._total_pages:
+            self._current_page += 1
+            self._refresh_display()
+
+    def _go_to_last_page(self):
+        """Go to last page."""
+        if self._current_page != self._total_pages:
+            self._current_page = self._total_pages
+            self._refresh_display()
+
+    def _on_page_size_change(self, event):
+        """Handle page size change."""
+        self._page_size = int(self.page_size_var.get())
+        self._current_page = 1  # Reset to first page
+        self._refresh_display()
+
+    def _on_page_jump(self, event=None):
+        """Jump to specific page."""
+        try:
+            page_num = int(self.page_jump_var.get())
+            if 1 <= page_num <= self._total_pages:
+                self._current_page = page_num
+                self._refresh_display()
+                self.page_jump_var.set('')  # Clear input
+            else:
+                # Invalid page number
+                self.page_jump_var.set('')
+        except ValueError:
+            # Not a valid number
+            self.page_jump_var.set('')
 
