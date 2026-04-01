@@ -164,9 +164,10 @@ class DetailView(ctk.CTkToplevel):
         self._setup_footer()
 
     def _setup_header(self):
-        """Setup header with title."""
+        """Setup header with title and search."""
         header_frame = ctk.CTkFrame(self.main_frame)
         header_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+        header_frame.grid_columnconfigure(1, weight=1)
 
         # Title
         title_label = ctk.CTkLabel(
@@ -174,7 +175,59 @@ class DetailView(ctk.CTkToplevel):
             text=f"Record Details - ID: {self.record_id}",
             **get_label_style('title')
         )
-        title_label.pack(side=tk.LEFT, padx=10, pady=5)
+        title_label.grid(row=0, column=0, padx=10, pady=5, sticky='w')
+
+        # Search frame
+        search_frame = ctk.CTkFrame(header_frame)
+        search_frame.grid(row=0, column=1, padx=10, pady=5, sticky='ew')
+        search_frame.grid_columnconfigure(1, weight=1)
+
+        # Search entry
+        self.search_var = tk.StringVar()
+        self.search_entry = ctk.CTkEntry(
+            search_frame,
+            textvariable=self.search_var,
+            placeholder_text="Search in JSON...",
+            width=200
+        )
+        self.search_entry.grid(row=0, column=1, padx=5, sticky='ew')
+        self.search_entry.bind('<Return>', self._search_next)
+
+        # Case sensitive checkbox
+        self.case_sensitive_var = tk.BooleanVar(value=False)
+        self.case_sensitive_cb = ctk.CTkCheckBox(
+            search_frame,
+            text="Aa",
+            variable=self.case_sensitive_var,
+            width=30
+        )
+        self.case_sensitive_cb.grid(row=0, column=2, padx=2)
+
+        # Previous button
+        self.prev_btn = ctk.CTkButton(
+            search_frame,
+            text="↑",
+            command=self._search_previous,
+            width=30
+        )
+        self.prev_btn.grid(row=0, column=3, padx=2)
+
+        # Next button
+        self.next_btn = ctk.CTkButton(
+            search_frame,
+            text="↓",
+            command=self._search_next,
+            width=30
+        )
+        self.next_btn.grid(row=0, column=4, padx=2)
+
+        # Match count label
+        self.match_label = ctk.CTkLabel(
+            search_frame,
+            text="0/0",
+            width=50
+        )
+        self.match_label.grid(row=0, column=5, padx=5)
 
         # Record info
         if self.data:
@@ -184,7 +237,12 @@ class DetailView(ctk.CTkToplevel):
                 text=info_text,
                 **get_label_style('normal')
             )
-            info_label.pack(side=tk.RIGHT, padx=10, pady=5)
+            info_label.grid(row=0, column=2, padx=10, pady=5, sticky='e')
+
+        # Initialize search state
+        self.search_matches = []
+        self.current_match_index = -1
+        self.SEARCH_TAG = 'search_highlight'
 
     def _setup_content(self):
         """Setup content area with text widget."""
@@ -341,6 +399,143 @@ class DetailView(ctk.CTkToplevel):
                 f"Failed to format JSON:\n{str(e)}",
                 parent=self
             )
+
+    def _find_all_matches(self, search_text: str) -> list:
+        """Find all matches of search text in the JSON."""
+        if not search_text:
+            return []
+
+        text = self.text.get('1.0', tk.END)
+        matches = []
+
+        # Search options
+        nocase = not self.case_sensitive_var.get()
+
+        # Find all matches
+        start_pos = '1.0'
+        while True:
+            pos = self.text.search(
+                search_text,
+                start_pos,
+                tk.END,
+                nocase=nocase
+            )
+            if not pos:
+                break
+
+            # Calculate end position
+            end_pos = f"{pos}+{len(search_text)}c"
+            matches.append((pos, end_pos))
+
+            # Move to next position
+            start_pos = end_pos
+
+        return matches
+
+    def _highlight_search_results(self):
+        """Highlight all search matches."""
+        # Use underlying text widget
+        text = self.text._textbox if hasattr(self.text, '_textbox') else self.text
+
+        # Clear previous highlights
+        text.tag_remove(self.SEARCH_TAG, '1.0', tk.END)
+
+        # Highlight all matches
+        for start, end in self.search_matches:
+            text.tag_add(self.SEARCH_TAG, start, end)
+
+        # Configure highlight style
+        text.tag_configure(
+            self.SEARCH_TAG,
+            background='#FFD700',  # Gold background
+            foreground='black'      # Black text
+        )
+
+    def _highlight_current_match(self):
+        """Highlight the current match with different color."""
+        if not self.search_matches or self.current_match_index < 0:
+            return
+
+        # Use underlying text widget
+        text = self.text._textbox if hasattr(self.text, '_textbox') else self.text
+
+        # Remove previous current highlight
+        text.tag_remove('current_match', '1.0', tk.END)
+
+        # Highlight current match
+        start, end = self.search_matches[self.current_match_index]
+        text.tag_add('current_match', start, end)
+
+        # Configure current match style
+        text.tag_configure(
+            'current_match',
+            background='#FF4500',  # Orange-red background
+            foreground='white'      # White text
+        )
+
+        # Scroll to make it visible
+        text.see(start)
+
+    def _update_match_label(self):
+        """Update the match counter label."""
+        if self.search_matches:
+            current = self.current_match_index + 1
+            total = len(self.search_matches)
+            self.match_label.configure(text=f"{current}/{total}")
+        else:
+            self.match_label.configure(text="0/0")
+
+    def _search_next(self, event=None):
+        """Search for next match."""
+        search_text = self.search_var.get()
+
+        if not search_text:
+            return
+
+        # Find all matches
+        self.search_matches = self._find_all_matches(search_text)
+
+        if not self.search_matches:
+            self.current_match_index = -1
+            self._update_match_label()
+            return
+
+        # Move to next match
+        if self.current_match_index < len(self.search_matches) - 1:
+            self.current_match_index += 1
+        else:
+            self.current_match_index = 0  # Wrap around
+
+        # Highlight results
+        self._highlight_search_results()
+        self._highlight_current_match()
+        self._update_match_label()
+
+    def _search_previous(self):
+        """Search for previous match."""
+        search_text = self.search_var.get()
+
+        if not search_text:
+            return
+
+        # Find all matches
+        self.search_matches = self._find_all_matches(search_text)
+
+        if not self.search_matches:
+            self.current_match_index = -1
+            self._update_match_label()
+            return
+
+        # Move to previous match
+        if self.current_match_index > 0:
+            self.current_match_index -= 1
+        else:
+            self.current_match_index = len(self.search_matches) - 1  # Wrap around
+
+        # Highlight results
+        self._highlight_search_results()
+        self._highlight_current_match()
+        self._update_match_label()
 
     def _copy_to_clipboard(self):
         """Copy data to clipboard."""
