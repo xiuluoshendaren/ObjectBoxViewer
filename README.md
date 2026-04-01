@@ -127,15 +127,14 @@ This project follows PEP 8 guidelines with type hints.
 
 This project supports building standalone executables for multiple platforms.
 
-### Prerequisites
+### Local Building
 
-Install PyInstaller:
-
+**Prerequisites:**
 ```bash
 pip install pyinstaller
 ```
 
-### Build for Different Platforms
+**Note:** You can only build for the platform you're currently running on. For cross-platform builds, use GitHub Actions (see below).
 
 **macOS Apple Silicon (M1/M2/M3):**
 ```bash
@@ -157,10 +156,43 @@ build_windows.bat
 ./build_all.sh
 ```
 
-### Build Output
+### Multi-Platform Builds with GitHub Actions
+
+This project includes a GitHub Actions workflow for automated multi-platform builds.
+
+**Method 1: Push a Tag**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+**Method 2: Manual Trigger**
+1. Go to Actions tab in GitHub
+2. Select "Build ObjectBox Viewer" workflow
+3. Click "Run workflow"
+
+**Build Outputs:**
+- macOS ARM64: `ObjectBoxViewer-macOS-ARM64`
+- macOS Intel: `ObjectBoxViewer-macOS-Intel`
+- Windows: `ObjectBoxViewer-Windows.zip`
+
+The workflow automatically:
+- Builds for all three platforms in parallel
+- Creates GitHub Release (when pushing tags)
+- Uploads build artifacts (30 days retention)
+
+### Build Output (Local)
 
 - **macOS**: `dist/ObjectBoxViewer.app` - Double-click to run
 - **Windows**: `dist/ObjectBoxViewer/ObjectBoxViewer.exe` - Run the executable
+
+### Build Limitations
+
+- **Cannot cross-compile**: You must build on the target platform
+  - macOS ARM64 builds require ARM64 system
+  - macOS Intel builds require Intel system or GitHub Actions
+  - Windows builds require Windows system or GitHub Actions
+- **Solution**: Use GitHub Actions for automated multi-platform builds
 
 ### Notes
 
