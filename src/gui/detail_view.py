@@ -30,13 +30,16 @@ class JSONSyntaxHighlighter:
     @staticmethod
     def highlight(text_widget: ctk.CTkTextbox, json_text: str):
         """Apply syntax highlighting to JSON text."""
+        # Use the underlying tkinter Text widget
+        text = text_widget._textbox if hasattr(text_widget, '_textbox') else text_widget
+
         # Configure tags with colors
         for tag_name, color in JSONSyntaxHighlighter.TAG_COLORS.items():
-            text_widget.tag_configure(tag_name, foreground=color)
+            text.tag_configure(tag_name, foreground=color)
 
         # Clear existing tags
         for tag in JSONSyntaxHighlighter.TAG_COLORS.keys():
-            text_widget.tag_remove(tag, '1.0', tk.END)
+            text.tag_remove(tag, '1.0', tk.END)
 
         try:
             # Parse JSON to validate and get structure
@@ -52,41 +55,41 @@ class JSONSyntaxHighlighter:
                 for match in re.finditer(key_pattern, line):
                     start = f"{line_num}.{match.start()}"
                     end = f"{line_num}.{match.end() - 1}"  # Exclude colon
-                    text_widget.tag_add('key', start, end)
+                    text.tag_add('key', start, end)
 
                 # Highlight string values
                 string_pattern = r':\s*"([^"]*)"'
                 for match in re.finditer(string_pattern, line):
                     start = f"{line_num}.{match.start() + 2}"  # Skip colon and space
                     end = f"{line_num}.{match.end()}"
-                    text_widget.tag_add('string', start, end)
+                    text.tag_add('string', start, end)
 
                 # Highlight numbers
                 number_pattern = r':\s*(-?\d+\.?\d*)'
                 for match in re.finditer(number_pattern, line):
                     start = f"{line_num}.{match.start() + 2}"
                     end = f"{line_num}.{match.end()}"
-                    text_widget.tag_add('number', start, end)
+                    text.tag_add('number', start, end)
 
                 # Highlight booleans
                 bool_pattern = r':\s*(true|false)'
                 for match in re.finditer(bool_pattern, line, re.IGNORECASE):
                     start = f"{line_num}.{match.start() + 2}"
                     end = f"{line_num}.{match.end()}"
-                    text_widget.tag_add('boolean', start, end)
+                    text.tag_add('boolean', start, end)
 
                 # Highlight null
                 null_pattern = r':\s*(null)'
                 for match in re.finditer(null_pattern, line, re.IGNORECASE):
                     start = f"{line_num}.{match.start() + 2}"
                     end = f"{line_num}.{match.end()}"
-                    text_widget.tag_add('null', start, end)
+                    text.tag_add('null', start, end)
 
                 # Highlight brackets and braces
                 for i, char in enumerate(line):
                     if char in '{}[]':
                         pos = f"{line_num}.{i}"
-                        text_widget.tag_add('bracket', pos, f"{line_num}.{i+1}")
+                        text.tag_add('bracket', pos, f"{line_num}.{i+1}")
 
                 line_num += 1
 
