@@ -58,6 +58,7 @@ class ReqableDB:
         self,
         db_path: str | None = None,
         capture_dir: str | None = None,
+        readonly: bool = True,
     ) -> None:
         # Handle .mdb file paths - LMDB expects directory path
         if db_path and db_path.endswith('.mdb'):
@@ -65,6 +66,7 @@ class ReqableDB:
 
         self.db_path = db_path or _default_db_path()
         self.capture_dir = capture_dir or _default_capture_dir()
+        self.readonly = readonly  # Store read/write mode
         self._env: lmdb.Environment | None = None
 
     # ------------------------------------------------------------------
@@ -76,7 +78,7 @@ class ReqableDB:
             return
         self._env = lmdb.open(
             self.db_path,
-            readonly=True,
+            readonly=self.readonly,  # Use instance variable
             lock=False,
             max_dbs=128,
             map_size=2 * 1024 * 1024 * 1024,  # 2 GB map

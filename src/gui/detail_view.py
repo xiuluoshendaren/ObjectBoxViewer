@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import tkinter as tk
+from tkinter import messagebox
 from datetime import datetime
 from typing import Any
 
@@ -27,13 +28,17 @@ class DetailView(ctk.CTkToplevel):
         master: tk.Widget,
         record_id: int,
         data: dict[str, Any] | None,
-        raw_bytes: bytes | None = None
+        raw_bytes: bytes | None = None,
+        on_delete: callable = None,
+        entity_id: int | None = None
     ):
         super().__init__(master)
 
         self.record_id = record_id
         self.data = data
         self.raw_bytes = raw_bytes
+        self.on_delete = on_delete  # Callback for delete operation
+        self.entity_id = entity_id  # Entity ID for deletion
 
         self._setup_window()
         self._setup_ui()
@@ -139,6 +144,16 @@ class DetailView(ctk.CTkToplevel):
         )
         self.export_btn.pack(side=tk.LEFT, padx=5, pady=5)
 
+        # Delete button
+        if self.on_delete and self.entity_id is not None:
+            self.delete_btn = ctk.CTkButton(
+                footer_frame,
+                text="🗑️ Delete Record",
+                command=self._delete_record,
+                **get_button_style('danger')
+            )
+            self.delete_btn.pack(side=tk.LEFT, padx=5, pady=5)
+
         # Close button
         self.close_btn = ctk.CTkButton(
             footer_frame,
@@ -234,6 +249,36 @@ class DetailView(ctk.CTkToplevel):
             self._show_message(f"Exported to: {filepath}")
         except Exception as e:
             self._show_message(f"Error exporting: {e}", error=True)
+
+    def _delete_record(self):
+        """Delete this record from the database."""
+        # Show confirmation dialog
+        confirm = messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete record #{self.record_id}?\n\n"
+            "This action cannot be undone!",
+            icon='warning',
+            parent=self
+        )
+
+        if not confirm:
+            return
+
+        # Call delete callback
+        if self.on_delete and self.entity_id is not None:
+            try:
+                success = self.on_delete(self.entity_id, self.record_id)
+
+                if success:
+                    self._show_message("Record deleted successfully!")
+                    # Close the detail window after a short delay
+                    self.after(1000, self.destroy)
+                else:
+                    self._show_message("Failed to delete record.\n\n"
+                                     "The database may be opened in read-only mode.",
+                                     error=True)
+            except Exception as e:
+                self._show_message(f"Error deleting record: {e}", error=True)
 
     def _show_message(self, message: str, error: bool = False):
         """Show a temporary message popup centered on parent window."""

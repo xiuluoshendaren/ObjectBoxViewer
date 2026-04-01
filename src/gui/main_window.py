@@ -387,8 +387,55 @@ class ObjectBoxBrowser(ctk.CTk):
                     raw_bytes = raw
                     break
 
-        # Open detail view
-        DetailView(self, record_id, data, raw_bytes)
+        # Open detail view with delete callback
+        DetailView(
+            self,
+            record_id,
+            data,
+            raw_bytes,
+            on_delete=self._delete_record,
+            entity_id=self.current_entity_id
+        )
+
+    def _delete_record(self, entity_id: int, record_id: int) -> bool:
+        """
+        Delete a record from the database.
+
+        Args:
+            entity_id: Entity type ID
+            record_id: Record ID to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        if not self.db:
+            messagebox.showerror("Error", "No database loaded")
+            return False
+
+        try:
+            # Close current database
+            self.db.close()
+
+            # Reopen in read-write mode
+            self.db = ReqableDB(db_path=self.db_path, readonly=False)
+            self.db.open()
+
+            # Delete the record
+            success = self.db.delete_record(entity_id, record_id)
+
+            if success:
+                # Refresh the entity list and table
+                self._load_entities()
+
+                # Reload records if the same entity is selected
+                if self.current_entity_id == entity_id:
+                    self._load_entity_records(entity_id)
+
+            return success
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete record:\n{str(e)}")
+            return False
 
     def _on_close(self):
         """Handle window close event."""
