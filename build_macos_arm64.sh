@@ -27,7 +27,6 @@ pyinstaller \
     main.py \
     --name ObjectBoxViewer \
     --windowed \
-    --onefile \
     --add-data "src:src" \
     --hidden-import customtkinter \
     --hidden-import lmdb \
