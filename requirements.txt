@@ -1,0 +1,2 @@
+lmdb>=1.4.1
+customtkinter>=5.2.0

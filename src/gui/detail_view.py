@@ -1,0 +1,261 @@
+"""Detail view component for displaying record details."""
+
+from __future__ import annotations
+
+import json
+import tkinter as tk
+from datetime import datetime
+from typing import Any
+
+import customtkinter as ctk
+
+from .styles import COLORS, FONTS, get_button_style, get_label_style
+
+
+class DetailView(ctk.CTkToplevel):
+    """
+    A popup window for displaying detailed record information.
+
+    Features:
+    - JSON formatting and syntax highlighting
+    - Copy to clipboard
+    - Export to JSON file
+    """
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        record_id: int,
+        data: dict[str, Any] | None,
+        raw_bytes: bytes | None = None
+    ):
+        super().__init__(master)
+
+        self.record_id = record_id
+        self.data = data
+        self.raw_bytes = raw_bytes
+
+        self._setup_window()
+        self._setup_ui()
+        self._load_data()
+
+    def _setup_window(self):
+        """Configure window properties."""
+        self.title(f"Record #{self.record_id}")
+
+        # Window size and position
+        self.geometry("800x600")
+        self.minsize(600, 400)
+
+        # Center on parent
+        self.transient(self.master)
+        self.grab_set()
+
+        # Make window resizable
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+    def _setup_ui(self):
+        """Initialize UI components."""
+        # Main container
+        self.main_frame = ctk.CTkFrame(self)
+        self.main_frame.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+        self.main_frame.grid_rowconfigure(1, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+
+        # Header
+        self._setup_header()
+
+        # Content area
+        self._setup_content()
+
+        # Footer with buttons
+        self._setup_footer()
+
+    def _setup_header(self):
+        """Setup header with title."""
+        header_frame = ctk.CTkFrame(self.main_frame)
+        header_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+
+        # Title
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text=f"Record Details - ID: {self.record_id}",
+            **get_label_style('title')
+        )
+        title_label.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Record info
+        if self.data:
+            info_text = f"Type: {type(self.data).__name__}"
+            info_label = ctk.CTkLabel(
+                header_frame,
+                text=info_text,
+                **get_label_style('normal')
+            )
+            info_label.pack(side=tk.RIGHT, padx=10, pady=5)
+
+    def _setup_content(self):
+        """Setup content area with text widget."""
+        # Text frame
+        text_frame = ctk.CTkFrame(self.main_frame)
+        text_frame.grid(row=1, column=0, sticky='nsew')
+        text_frame.grid_rowconfigure(0, weight=1)
+        text_frame.grid_columnconfigure(0, weight=1)
+
+        # Text widget with scrollbar
+        self.text = ctk.CTkTextbox(
+            text_frame,
+            font=FONTS['code_large'],  # Use larger font for better readability
+            wrap=tk.WORD
+        )
+        self.text.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
+
+        # Scrollbar
+        scrollbar = ctk.CTkScrollbar(text_frame, command=self.text.yview)
+        scrollbar.grid(row=0, column=1, sticky='ns')
+        self.text.configure(yscrollcommand=scrollbar.set)
+
+    def _setup_footer(self):
+        """Setup footer with action buttons."""
+        footer_frame = ctk.CTkFrame(self.main_frame)
+        footer_frame.grid(row=2, column=0, sticky='ew', pady=(10, 0))
+
+        # Copy button
+        self.copy_btn = ctk.CTkButton(
+            footer_frame,
+            text="Copy to Clipboard",
+            command=self._copy_to_clipboard,
+            **get_button_style('primary')
+        )
+        self.copy_btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Export button
+        self.export_btn = ctk.CTkButton(
+            footer_frame,
+            text="Export to JSON",
+            command=self._export_to_json,
+            **get_button_style('success')
+        )
+        self.export_btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Close button
+        self.close_btn = ctk.CTkButton(
+            footer_frame,
+            text="Close",
+            command=self.destroy,
+            **get_button_style('warning')
+        )
+        self.close_btn.pack(side=tk.RIGHT, padx=5, pady=5)
+
+    def _load_data(self):
+        """Load and display data."""
+        self.text.delete('1.0', tk.END)
+
+        if self.data:
+            # Format JSON with indentation
+            try:
+                formatted = json.dumps(
+                    self.data,
+                    indent=2,
+                    ensure_ascii=False,
+                    default=str
+                )
+                self.text.insert('1.0', formatted)
+            except Exception as e:
+                self.text.insert('1.0', f"Error formatting data: {e}\n\nRaw data:\n{self.data}")
+        elif self.raw_bytes:
+            # Display raw bytes
+            self.text.insert(
+                '1.0',
+                f"Binary data ({len(self.raw_bytes)} bytes)\n\n"
+                f"Hex:\n{self.raw_bytes[:500].hex()}\n\n"
+                f"UTF-8 (may be incomplete):\n{self.raw_bytes[:500].decode('utf-8', errors='replace')}"
+            )
+        else:
+            self.text.insert('1.0', "No data available")
+
+        # Make text read-only
+        self.text.configure(state=tk.DISABLED)
+
+    def _copy_to_clipboard(self):
+        """Copy data to clipboard."""
+        if not self.data:
+            return
+
+        try:
+            formatted = json.dumps(
+                self.data,
+                indent=2,
+                ensure_ascii=False,
+                default=str
+            )
+
+            self.clipboard_clear()
+            self.clipboard_append(formatted)
+            self.update()  # Keep clipboard after window closes
+
+            # Show success message
+            self._show_message("Copied to clipboard!")
+        except Exception as e:
+            self._show_message(f"Error copying: {e}", error=True)
+
+    def _export_to_json(self):
+        """Export data to JSON file."""
+        if not self.data:
+            return
+
+        # Ask for file location
+        from tkinter import filedialog
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        default_filename = f"record_{self.record_id}_{timestamp}.json"
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension='.json',
+            filetypes=[('JSON files', '*.json'), ('All files', '*.*')],
+            initialfile=default_filename,
+            title='Export Record to JSON'
+        )
+
+        if not filepath:
+            return
+
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(
+                    self.data,
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                    default=str
+                )
+
+            self._show_message(f"Exported to: {filepath}")
+        except Exception as e:
+            self._show_message(f"Error exporting: {e}", error=True)
+
+    def _show_message(self, message: str, error: bool = False):
+        """Show a temporary message."""
+        # Create a small popup
+        popup = ctk.CTkToplevel(self)
+        popup.title("Message" if not error else "Error")
+        popup.geometry("300x100")
+
+        label = ctk.CTkLabel(
+            popup,
+            text=message,
+            wraplength=280,
+            text_color=COLORS['danger'] if error else COLORS['success']
+        )
+        label.pack(pady=20)
+
+        ok_btn = ctk.CTkButton(
+            popup,
+            text="OK",
+            command=popup.destroy
+        )
+        ok_btn.pack()
+
+        # Auto-close after 3 seconds
+        popup.after(3000, popup.destroy)
