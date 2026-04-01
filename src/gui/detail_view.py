@@ -236,26 +236,57 @@ class DetailView(ctk.CTkToplevel):
             self._show_message(f"Error exporting: {e}", error=True)
 
     def _show_message(self, message: str, error: bool = False):
-        """Show a temporary message."""
+        """Show a temporary message popup centered on parent window."""
         # Create a small popup
         popup = ctk.CTkToplevel(self)
         popup.title("Message" if not error else "Error")
-        popup.geometry("300x100")
 
+        # Set as transient to ensure it stays on top of parent
+        popup.transient(self)
+
+        # Calculate center position
+        popup_width = 320
+        popup_height = 120
+
+        # Get parent window position and size
+        self.update_idletasks()  # Ensure geometry is up to date
+        parent_x = self.winfo_x()
+        parent_y = self.winfo_y()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
+
+        # Calculate centered position
+        x = parent_x + (parent_width - popup_width) // 2
+        y = parent_y + (parent_height - popup_height) // 2
+
+        popup.geometry(f"{popup_width}x{popup_height}+{x}+{y}")
+
+        # Prevent resizing
+        popup.resizable(False, False)
+
+        # Message label
         label = ctk.CTkLabel(
             popup,
             text=message,
             wraplength=280,
-            text_color=COLORS['danger'] if error else COLORS['success']
+            text_color=COLORS['danger'] if error else COLORS['success'],
+            font=FONTS['body']
         )
         label.pack(pady=20)
 
+        # OK button
         ok_btn = ctk.CTkButton(
             popup,
             text="OK",
-            command=popup.destroy
+            command=popup.destroy,
+            **get_button_style('primary')
         )
         ok_btn.pack()
+        ok_btn.focus_set()  # Set focus to OK button
+
+        # Grab focus to make it modal
+        popup.grab_set()
 
         # Auto-close after 3 seconds
-        popup.after(3000, popup.destroy)
+        popup.after(3000, lambda: popup.destroy() if popup.winfo_exists() else None)
+
