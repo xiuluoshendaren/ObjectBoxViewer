@@ -16,7 +16,7 @@ fi
 
 # Clean previous builds
 echo "Cleaning previous builds..."
-rm -rf build/ dist/
+rm -rf build/ dist/*
 
 # Build for ARM64
 echo "Building for ARM64 architecture..."
